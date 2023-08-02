@@ -108,8 +108,7 @@ func (h *TweetHandler) ResolveTweetByID(w http.ResponseWriter, r *http.Request) 
 func convertIdParamsToInt(idStr string) (int, error) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Println("Error during conversion")
-		return 0, err
+		return 0, fmt.Errorf("error converting ID parameter to integer: %w", err)
 	}
 
 	return id, nil

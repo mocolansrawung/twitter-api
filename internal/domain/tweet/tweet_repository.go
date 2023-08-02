@@ -30,8 +30,6 @@ var (
 				deleted_at,
 				deleted_by
 			FROM tweets
-			WHERE
-				1=1
 		`,
 
 		selectTweet: `
@@ -115,9 +113,11 @@ func (r *TweetRepositoryMySQL) Create(tweet Tweet) (err error) {
 	})
 }
 
-// Resolve All Tweets
+// Resolve Tweets
 func (r *TweetRepositoryMySQL) ResolveTweets(page int, limit int, sort string, order string) (tweets []Tweet, err error) {
 	var args []interface{}
+
+	query := tweetQueries.selectAllTweets
 
 	if sort != "" {
 		validColumns := map[string]bool{
@@ -143,14 +143,18 @@ func (r *TweetRepositoryMySQL) ResolveTweets(page int, limit int, sort string, o
 			return nil, errors.New("Invalid order parameter")
 		}
 
-		tweetQueries.selectAllTweets += fmt.Sprintf(" ORDER BY %s %s", sort, order)
+		if order == "" {
+			order = "asc"
+		}
+
+		query += fmt.Sprintf(" ORDER BY %s %s", sort, order)
 	}
 
-	offset := (page - 1) * limit
-	tweetQueries.selectAllTweets += " LIMIT ? OFFSET ?"
+	offset := page * limit
+	query += " LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
-	err = r.DB.Read.Select(&tweets, tweetQueries.selectAllTweets, args...)
+	err = r.DB.Read.Select(&tweets, query, args...)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
