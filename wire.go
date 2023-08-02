@@ -1,14 +1,16 @@
-//+build wireinject
+//go:build wireinject
+// +build wireinject
 
 package main
 
 import (
 	"github.com/evermos/boilerplate-go/configs"
-	"github.com/evermos/boilerplate-go/event"
-	fooBarBazEvent "github.com/evermos/boilerplate-go/event/domain/foobarbaz"
+	// "github.com/evermos/boilerplate-go/event"
+	// fooBarBazEvent "github.com/evermos/boilerplate-go/event/domain/foobarbaz"
 	"github.com/evermos/boilerplate-go/event/producer"
 	"github.com/evermos/boilerplate-go/infras"
 	"github.com/evermos/boilerplate-go/internal/domain/foobarbaz"
+	"github.com/evermos/boilerplate-go/internal/domain/tweet"
 	"github.com/evermos/boilerplate-go/internal/handlers"
 	"github.com/evermos/boilerplate-go/transport/http"
 	"github.com/evermos/boilerplate-go/transport/http/middleware"
@@ -39,9 +41,18 @@ var domainFooBarBaz = wire.NewSet(
 	wire.Bind(new(producer.Producer), new(*producer.SNSProducer)),
 )
 
+// Wiring for domain Tweet.
+var domainTweet = wire.NewSet(
+	tweet.ProvideTweetServiceImpl,
+	wire.Bind(new(tweet.TweetService), new(*tweet.TweetServiceImpl)),
+	tweet.ProvideTweetRepositoryMySQL,
+	wire.Bind(new(tweet.TweetRepository), new(*tweet.TweetRepositoryMySQL)),
+)
+
 // Wiring for all domains.
 var domains = wire.NewSet(
 	domainFooBarBaz,
+	domainTweet,
 )
 
 var authMiddleware = wire.NewSet(
@@ -50,16 +61,17 @@ var authMiddleware = wire.NewSet(
 
 // Wiring for HTTP routing.
 var routing = wire.NewSet(
-	wire.Struct(new(router.DomainHandlers), "FooBarBazHandler"),
+	wire.Struct(new(router.DomainHandlers), "FooBarBazHandler", "TweetHandler"),
 	handlers.ProvideFooBarBazHandler,
+	handlers.ProvideTweetHandler,
 	router.ProvideRouter,
 )
 
 // Wiring for all domains event consumer.
-var evco = wire.NewSet(
-	wire.Struct(new(event.Consumers), "FooBarBaz"),
-	fooBarBazEvent.ProvideConsumerImpl,
-)
+// var evco = wire.NewSet(
+// 	wire.Struct(new(event.Consumers), "FooBarBaz"),
+// 	fooBarBazEvent.ProvideConsumerImpl,
+// )
 
 // Wiring for everything.
 func InitializeService() *http.HTTP {
@@ -80,16 +92,16 @@ func InitializeService() *http.HTTP {
 }
 
 // Wiring the event needs.
-func InitializeEvent() event.Consumers {
-	wire.Build(
-		// configurations
-		configurations,
-		// persistences
-		persistences,
-		// domains
-		domains,
-		// event consumer
-		evco)
+// func InitializeEvent() event.Consumers {
+// 	wire.Build(
+// 		// configurations
+// 		configurations,
+// 		// persistences
+// 		persistences,
+// 		// domains
+// 		domains,
+// 		// event consumer
+// 		evco)
 
-	return event.Consumers{}
-}
+// 	return event.Consumers{}
+// }
