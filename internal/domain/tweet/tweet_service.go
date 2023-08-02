@@ -10,6 +10,8 @@ type TweetService interface {
 	Create(requestFormat TweetRequestFormat, userID uuid.UUID) (tweet Tweet, err error)
 	ResolveByID(id uuid.UUID) (tweet Tweet, err error)
 	ResolveTweets(page int, limit int, sort string, order string) (tweets []Tweet, err error)
+	SoftDelete(id uuid.UUID, userID uuid.UUID) (tweet Tweet, err error)
+	Update(id uuid.UUID, requestFormat TweetRequestFormat, userID uuid.UUID) (tweet Tweet, err error)
 }
 
 type TweetServiceImpl struct {
@@ -63,5 +65,37 @@ func (s *TweetServiceImpl) ResolveByID(id uuid.UUID) (tweet Tweet, err error) {
 		return tweet, failure.NotFound("tweet")
 	}
 
+	return
+}
+
+// SoftDelete
+func (s *TweetServiceImpl) SoftDelete(id uuid.UUID, userID uuid.UUID) (tweet Tweet, err error) {
+	tweet, err = s.TweetRepository.ResolveByID(id)
+	if err != nil {
+		return
+	}
+
+	err = tweet.SoftDelete(userID)
+	if err != nil {
+		return
+	}
+
+	err = s.TweetRepository.Update(tweet)
+	return
+}
+
+// Update updates a Tweet
+func (s *TweetServiceImpl) Update(id uuid.UUID, requestFormat TweetRequestFormat, userID uuid.UUID) (tweet Tweet, err error) {
+	tweet, err = s.TweetRepository.ResolveByID(id)
+	if err != nil {
+		return
+	}
+
+	err = tweet.Update(requestFormat, userID)
+	if err != nil {
+		return
+	}
+
+	err = s.TweetRepository.Update(tweet)
 	return
 }

@@ -17,6 +17,7 @@ var (
 		selectAllTweets string
 		selectTweet     string
 		insertTweet     string
+		updateTweet     string
 	}{
 		selectAllTweets: `
 			SELECT
@@ -69,6 +70,21 @@ var (
 				:deleted_by
 			)
 		`,
+
+		updateTweet: `
+			UPDATE tweets
+			SET
+				content = :content,
+				retweets = :retweets,
+				created_at = :created_at,
+				created_by = :created_by,
+				updated_at = :updated_at,
+				updated_by = :updated_by,
+				deleted_at = :deleted_at,
+				deleted_by = :deleted_by
+			WHERE
+				id = :id
+		`,
 	}
 )
 
@@ -76,6 +92,7 @@ type TweetRepository interface {
 	Create(tweet Tweet) (err error)
 	ResolveByID(id uuid.UUID) (tweet Tweet, err error)
 	ResolveTweets(page int, limit int, sort string, order string) (tweets []Tweet, err error)
+	Update(tweet Tweet) (err error)
 }
 
 type TweetRepositoryMySQL struct {
@@ -186,6 +203,30 @@ func (r *TweetRepositoryMySQL) ResolveByID(id uuid.UUID) (tweet Tweet, err error
 	return
 }
 
+// Update updates a Tweet
+func (r *TweetRepositoryMySQL) Update(tweet Tweet) (err error) {
+	exists, err := r.ExistsByID(tweet.ID)
+	if err != nil {
+		logger.ErrorWithStack(err)
+		return
+	}
+
+	if !exists {
+		err = failure.NotFound("tweet")
+		logger.ErrorWithStack(err)
+		return
+	}
+
+	return r.DB.WithTransaction(func(tx *sqlx.Tx, e chan error) {
+		if err := r.txUpdate(tx, tweet); err != nil {
+			e <- err
+			return
+		}
+
+		e <- nil
+	})
+}
+
 // Checking the existence of a Tweet by its ID.
 func (r *TweetRepositoryMySQL) ExistsByID(id uuid.UUID) (exists bool, err error) {
 	err = r.DB.Read.Get(
@@ -203,6 +244,22 @@ func (r *TweetRepositoryMySQL) ExistsByID(id uuid.UUID) (exists bool, err error)
 // Internal functions
 func (r *TweetRepositoryMySQL) txCreate(tx *sqlx.Tx, tweet Tweet) (err error) {
 	stmt, err := tx.PrepareNamed(tweetQueries.insertTweet)
+	if err != nil {
+		logger.ErrorWithStack(err)
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(tweet)
+	if err != nil {
+		logger.ErrorWithStack(err)
+	}
+
+	return
+}
+
+func (r *TweetRepositoryMySQL) txUpdate(tx *sqlx.Tx, tweet Tweet) (err error) {
+	stmt, err := tx.PrepareNamed(tweetQueries.updateTweet)
 	if err != nil {
 		logger.ErrorWithStack(err)
 		return

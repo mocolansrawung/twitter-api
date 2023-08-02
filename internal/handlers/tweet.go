@@ -32,6 +32,8 @@ func (h *TweetHandler) Router(r chi.Router) {
 			r.Post("/", h.CreateTweet)
 			r.Get("/", h.ResolveAllTweets)
 			r.Get("/{id}", h.ResolveTweetByID)
+			r.Put("/{id}", h.UpdateTweet)
+			r.Delete("/{id}", h.SoftDeleteTweet)
 		})
 	})
 }
@@ -96,6 +98,60 @@ func (h *TweetHandler) ResolveTweetByID(w http.ResponseWriter, r *http.Request) 
 	}
 
 	tweet, err := h.TweetService.ResolveByID(id)
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+
+	response.WithJSON(w, http.StatusOK, tweet)
+}
+
+// Update
+func (h *TweetHandler) UpdateTweet(w http.ResponseWriter, r *http.Request) {
+	idString := chi.URLParam(r, "id")
+	id, err := uuid.FromString(idString)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var requestFormat tweet.TweetRequestFormat
+	err = decoder.Decode(&requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	err = shared.GetValidator().Struct(requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	userID, _ := uuid.NewV4()
+
+	tweet, err := h.TweetService.Update(id, requestFormat, userID)
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+
+	response.WithJSON(w, http.StatusOK, tweet)
+}
+
+// SoftDelete
+func (h *TweetHandler) SoftDeleteTweet(w http.ResponseWriter, r *http.Request) {
+	idString := chi.URLParam(r, "id")
+	id, err := uuid.FromString(idString)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	userID, _ := uuid.NewV4()
+
+	tweet, err := h.TweetService.SoftDelete(id, userID)
 	if err != nil {
 		response.WithError(w, err)
 		return

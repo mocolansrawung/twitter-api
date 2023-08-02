@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/evermos/boilerplate-go/shared"
+	"github.com/evermos/boilerplate-go/shared/failure"
 	"github.com/evermos/boilerplate-go/shared/nuuid"
 	"github.com/gofrs/uuid"
 	"github.com/guregu/null"
@@ -54,6 +55,18 @@ func (t *Tweet) Validate() (err error) {
 	return validator.Struct(t)
 }
 
+// SoftDelete
+func (t *Tweet) SoftDelete(userID uuid.UUID) (err error) {
+	if t.IsDeleted() {
+		return failure.Conflict("softDelete", "tweet", "already marked as deleted")
+	}
+
+	t.DeletedAt = null.TimeFrom(time.Now())
+	t.DeletedBy = nuuid.From(userID)
+
+	return
+}
+
 func (t Tweet) ToResponseFormat() TweetResponseFormat {
 	resp := TweetResponseFormat{
 		ID:        t.ID,
@@ -68,6 +81,17 @@ func (t Tweet) ToResponseFormat() TweetResponseFormat {
 	}
 
 	return resp
+}
+
+// Update updates a Tweet
+func (t *Tweet) Update(req TweetRequestFormat, userID uuid.UUID) (err error) {
+	t.Content = req.Content
+	t.UpdatedAt = null.TimeFrom(time.Now())
+	t.UpdatedBy = nuuid.From(userID)
+
+	err = t.Validate()
+
+	return
 }
 
 type TweetRequestFormat struct {
