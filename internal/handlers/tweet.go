@@ -9,14 +9,15 @@ import (
 	"github.com/evermos/boilerplate-go/internal/domain/tweet"
 	"github.com/evermos/boilerplate-go/shared"
 	"github.com/evermos/boilerplate-go/shared/failure"
+	"github.com/evermos/boilerplate-go/transport/http/middleware"
 	"github.com/evermos/boilerplate-go/transport/http/response"
 	"github.com/go-chi/chi"
 	"github.com/gofrs/uuid"
 )
 
 type TweetHandler struct {
-	TweetService tweet.TweetService
-	// AuthMiddleware *middleware.Authentication
+	TweetService   tweet.TweetService
+	AuthMiddleware *middleware.Authentication
 }
 
 func ProvideTweetHandler(tweetService tweet.TweetService) TweetHandler {
@@ -29,6 +30,7 @@ func ProvideTweetHandler(tweetService tweet.TweetService) TweetHandler {
 func (h *TweetHandler) Router(r chi.Router) {
 	r.Route("/tweets", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
+			r.Use(h.AuthMiddleware.ApiKeyAuth)
 			r.Post("/", h.CreateTweet)
 			r.Get("/", h.ResolveAllTweets)
 			r.Get("/{id}", h.ResolveTweetByID)
